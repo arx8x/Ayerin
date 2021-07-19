@@ -2,6 +2,7 @@ import json
 import codecs
 import datetime
 import os.path
+import validators
 from instagram_private_api import (
         Client, ClientError, ClientLoginError,
         ClientCookieExpiredError, ClientLoginRequiredError)
@@ -60,3 +61,23 @@ class IGBot(Client):
             with open(settings_file_path, 'w') as file:
                 json.dump(self.__settings, file, default=to_json)
                 print('SAVED: {0!s}'.format(settings_file_path))
+
+    def get_media_url(self, media_url):
+        if not validators.url(media_url):
+            print("Invalid post url")
+            return None
+        try:
+            embed_info = self.oembed(media_url)
+            media_id = embed_info['media_id']
+            media_info_base = self.media_info(media_id)
+            # print(json.dumps(media_info_base))
+            media_info = media_info_base['items'][0]
+            if media_info['media_type'] == 1: # Photo
+                image_variants = media_info['image_versions2']
+                largest_image = image_variants['candidates'][0]
+                return largest_image['url']
+            elif media_info['media_type'] == 2: # video
+                video_variants = media_info['video_versions']
+                return video_variants[0]['url']
+        except:
+            return None
