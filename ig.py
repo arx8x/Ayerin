@@ -21,15 +21,7 @@ def from_json(json_object):
     return json_object
 
 
-def onlogin_callback(api, new_settings_file):
-    cache_settings = api.settings
-    with open(new_settings_file, 'w') as outfile:
-        json.dump(cache_settings, outfile, default=to_json)
-        print('SAVED: {0!s}'.format(new_settings_file))
-
-
 class IGBot(Client):
-
     def __init__(self, username, password):
         device_id = None
         try:
