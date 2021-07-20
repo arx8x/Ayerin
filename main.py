@@ -3,7 +3,7 @@ import os
 from __shared import igbot
 import urllib.request
 from urllib.parse import urlparse
-from telegram import Update
+from telegram import Update, constants as tgconstants
 from telegram.ext import Updater, MessageHandler, Filters
 
 # helper functions
@@ -29,23 +29,29 @@ def download_file(url, local_path, headers=[]):
 
 # bot message handlers
 def message_handler(update, context):
-    media_url = igbot.get_media_url(update.message.text)
-    if not media_url:
-        context.bot.send_message(chat_id=update.effective_chat.id,
+    media_urls = igbot.get_media_urls(update.message.text)
+    chat_id = update.effective_chat.id
+    if not media_urls:
+        context.bot.send_message(chat_id=chat_id,
         text = "The media type you sent may not be supported")
         return
-    file_name = url_filename(media_url)
-    download_path = "/tmp/instagram/" + file_name
+    for media_url in media_urls:
+        file_name = url_filename(media_url)
+        download_path = "/tmp/instagram/" + file_name
+        if not download_file(media_url, download_path, [('User-Agent', igbot.user_agent)]):
+            context.bot.send_message(chat_id=chat_id,
+            text = "Unable to download media")
+            return
+        document = open(download_path, 'rb')
+        document.seek(0, os.SEEK_END)
+        file_size = document.tell()
+        if file_size > 1048576: # 1 MB
+            context.bot.send_chat_action(chat_id, tgconstants.CHATACTION_UPLOAD_DOCUMENT)
+        document.seek(0, os.SEEK_SET)
+        context.bot.send_document(document = document, chat_id=chat_id)
+        document.close()
+        os.unlink(download_path)
 
-    if not download_file(media_url, download_path, [('User-Agent', igbot.user_agent)]):
-        context.bot.send_message(chat_id=update.effective_chat.id,
-        text = "Unable to download media")
-        return
-
-    document = open(download_path, 'rb')
-    context.bot.send_document(document = document,
-    chat_id=update.effective_chat.id)
-    document.close()
 
 ## BEGIN PROCEDURE
 # create temporary downlaod paths

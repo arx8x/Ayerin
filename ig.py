@@ -54,7 +54,7 @@ class IGBot(Client):
                 json.dump(self.__settings, file, default=to_json)
                 print('SAVED: {0!s}'.format(settings_file_path))
 
-    def get_media_url(self, media_url):
+    def get_media_urls(self, media_url):
         if not validators.url(media_url):
             print("Invalid post url")
             return None
@@ -64,12 +64,20 @@ class IGBot(Client):
             media_info_base = self.media_info(media_id)
             # print(json.dumps(media_info_base))
             media_info = media_info_base['items'][0]
-            if media_info['media_type'] == 1: # Photo
+            if media_info['media_type'] == 1: # photo
                 image_variants = media_info['image_versions2']
                 largest_image = image_variants['candidates'][0]
-                return largest_image['url']
+                return [largest_image['url']]
             elif media_info['media_type'] == 2: # video
                 video_variants = media_info['video_versions']
-                return video_variants[0]['url']
+                return [video_variants[0]['url']]
+            elif media_info['media_type'] == 8: # carousel
+                image_url_array = []
+                media_array = media_info['carousel_media']
+                for media_info in media_array:
+                    image_variants = media_info['image_versions2']
+                    largest_image = image_variants['candidates'][0]
+                    image_url_array.append(largest_image['url'])
+                return image_url_array
         except:
             return None
