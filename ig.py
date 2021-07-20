@@ -25,7 +25,7 @@ class IGBot(Client):
     def __init__(self, username, password):
         device_id = None
         try:
-            settings_file_path = 'config'
+            settings_file_path = '.ig_config'
             if not os.path.isfile(settings_file_path):
                 # settings file does not exist
                 print('Unable to find file: {0!s}'.format(settings_file_path))
