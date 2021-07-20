@@ -1,11 +1,9 @@
 import json
 import codecs
-import datetime
 import os.path
 import validators
 from instagram_private_api import (
-        Client, ClientError, ClientLoginError,
-        ClientCookieExpiredError, ClientLoginRequiredError)
+        Client, ClientCookieExpiredError, ClientLoginRequiredError)
 
 
 def to_json(python_object):
@@ -64,14 +62,14 @@ class IGBot(Client):
             media_info_base = self.media_info(media_id)
             # print(json.dumps(media_info_base))
             media_info = media_info_base['items'][0]
-            if media_info['media_type'] == 1: # photo
+            if media_info['media_type'] == 1:  # photo
                 image_variants = media_info['image_versions2']
                 largest_image = image_variants['candidates'][0]
                 return [largest_image['url']]
-            elif media_info['media_type'] == 2: # video
+            elif media_info['media_type'] == 2:  # video
                 video_variants = media_info['video_versions']
                 return [video_variants[0]['url']]
-            elif media_info['media_type'] == 8: # carousel
+            elif media_info['media_type'] == 8:  # carousel
                 image_url_array = []
                 media_array = media_info['carousel_media']
                 for media_info in media_array:
@@ -79,5 +77,5 @@ class IGBot(Client):
                     largest_image = image_variants['candidates'][0]
                     image_url_array.append(largest_image['url'])
                 return image_url_array
-        except:
+        except Exception:
             return None
