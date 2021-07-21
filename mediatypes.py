@@ -1,0 +1,21 @@
+from dataclasses import dataclass
+from enum import Enum
+from typing import Optional
+
+
+class MediaType(Enum):
+    IMAGE = 1
+    VIDEO = 2
+
+
+@dataclass
+class MediaOject:
+    url: str
+    mediatype: MediaType
+    filesize: Optional[int] = 0
+    height: Optional[int] = 0
+    width: Optional[int] = 0
+    duration: Optional[int] = 0
+    caption: Optional[str] = None
+    file_name: Optional[str] = None
+    local_path: Optional[str] = None

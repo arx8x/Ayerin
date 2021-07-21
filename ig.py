@@ -2,6 +2,8 @@ import json
 import codecs
 import os.path
 import validators
+from utils import url_filename
+from mediatypes import MediaOject, MediaType
 from instagram_private_api import (
         Client, ClientCookieExpiredError, ClientLoginRequiredError)
 
@@ -41,7 +43,8 @@ class IGBot(Client):
                 super().__init__(username, password, settings=settings)
 
         except (ClientCookieExpiredError, ClientLoginRequiredError) as e:
-            print('ClientCookieExpiredError/ClientLoginRequiredError: {0!s}'.format(e))
+            print('ClientCookieExpiredError/ClientLoginRequiredError: {0!s}'
+                  .format(e))
 
             # Login expired
             # Do relogin but use default ua, keys and such
@@ -52,7 +55,7 @@ class IGBot(Client):
                 json.dump(self.__settings, file, default=to_json)
                 print('SAVED: {0!s}'.format(settings_file_path))
 
-    def get_media_urls(self, media_url):
+    def get_post_media(self, media_url):
         if not validators.url(media_url):
             print("Invalid post url")
             return None
@@ -60,22 +63,42 @@ class IGBot(Client):
             embed_info = self.oembed(media_url)
             media_id = embed_info['media_id']
             media_info_base = self.media_info(media_id)
-            # print(json.dumps(media_info_base))
             media_info = media_info_base['items'][0]
-            if media_info['media_type'] == 1:  # photo
-                image_variants = media_info['image_versions2']
-                largest_image = image_variants['candidates'][0]
-                return [largest_image['url']]
-            elif media_info['media_type'] == 2:  # video
-                video_variants = media_info['video_versions']
-                return [video_variants[0]['url']]
+            if media_info['caption']:
+                caption = media_info['caption']['text']
+            if media_info['media_type'] <= 2:  # photo and video
+                media = self.__create_media_object(media_info)
+                media.caption = caption
+                return [media]
             elif media_info['media_type'] == 8:  # carousel
-                image_url_array = []
-                media_array = media_info['carousel_media']
-                for media_info in media_array:
-                    image_variants = media_info['image_versions2']
-                    largest_image = image_variants['candidates'][0]
-                    image_url_array.append(largest_image['url'])
-                return image_url_array
-        except Exception:
+                media_array = []
+                carousel_media = media_info['carousel_media']
+                for carousel_media_info in carousel_media:
+                    media = self.__create_media_object(carousel_media_info)
+                    media.caption = caption
+                    media_array.append(media)
+                return media_array
+        except Exception as e:
+            print(e)
             return None
+
+    def __create_media_object(self, media_dict):
+        # key_dict = {
+        #     1: 'image_versions2',
+        #     2: 'video_versions'
+        # }
+        # key = key_dict[media_dict['media_type']]
+        # if not key:
+        #     return None
+        if media_dict['media_type'] == 1:
+            selected_media = media_dict['image_versions2']['candidates'][0]
+            type = MediaType.IMAGE
+        elif media_dict['media_type'] == 2:
+            selected_media = media_dict['video_versions'][0]
+            type = MediaType.VIDEO
+
+        media = MediaOject(selected_media['url'], mediatype=type)
+        media.height = selected_media['height']
+        media.width = selected_media['width']
+        media.file_name = url_filename(media.url)
+        return media
