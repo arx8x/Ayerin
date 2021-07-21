@@ -59,13 +59,16 @@ class IGBot(Client):
         if not validators.url(media_url):
             print("Invalid post url")
             return None
+        embed_info = self.oembed(media_url)
+        media_id = embed_info['media_id']
+        return self.__media_objects_from_media_id(media_id)
+
+    def __media_objects_from_media_id(self, media_id):
         try:
-            embed_info = self.oembed(media_url)
-            media_id = embed_info['media_id']
             media_info_base = self.media_info(media_id)
             media_info = media_info_base['items'][0]
-            if media_info['caption']:
-                caption = media_info['caption']['text']
+            caption = media_info['caption']['text'] \
+                if media_info['caption'] else None
             if media_info['media_type'] <= 2:  # photo and video
                 media = self.__create_media_object(media_info)
                 media.caption = caption

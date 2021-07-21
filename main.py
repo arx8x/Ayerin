@@ -1,56 +1,82 @@
 #!/usr/bin/python3
 import os
 import re
+from time import sleep
+import validators
 from __shared import igbot, tgbot, tgupdater
 from telegram import (constants as tgconstants,
                       InputMediaDocument as TGMediaDocument)
 from telegram.ext import MessageHandler, Filters
-from utils import download_file
+import utils
+
+# global variable to hold the current Update
+# this only works since these handlers are blocking/synchronous
+# RENOVE THIS WHEN DOING Async to avoid race conditions
+current_update = None
+
 
 # bot message handlers
-
-
 def message_handler(update, context):
+    global current_update
     message = update.message.text
-    chat_id = update.effective_chat.id
-    # bot currently only supports instagram
-    # assuming all links are instagram links
-    download_handler_instagram(message, chat_id)
+    current_update = update
+    # chat_id = update.effective_chat.id
+    if validators.url(message):
+        url_handler(message)
+    else:
+        chat_message_handler(message)
     return
 
 
-def download_handler_instagram(message, chat_id):
-    regex = re.compile('.*instagram.com/([\w\-\_\.]{2,}?)(?:\?.*|$)')
-    matches = regex.findall(message)
-    # this regex is for matching username
-    # if mathches, get username and send back profile picture
-    if matches:
-        try:
-            username = matches[0]
-            userinfo = igbot.username_info(username)
-            image_url = userinfo['user']['hd_profile_pic_url_info']['url']
-            username = userinfo['user']['username']
-            full_name = userinfo['user']['full_name']
-            download_path = f"/tmp/instagram/{username}.jpg"
-            if not download_file(image_url, download_path):
-                raise Exception("file not found")
-            document = open(download_path, 'rb')
-            tgbot.send_document(document=document,
-                                filename=f"{username}.jpg",
-                                chat_id=chat_id, caption=full_name)
-            os.unlink(download_path)
-        except Exception:
-            tgbot.send_message(chat_id=chat_id,
-                               text="Unable to download profile picture")
+def chat_message_handler(message):
+    tgbot.send_message(current_update.effective_chat.id,
+                       "Send me a social media link to begin")
+
+
+def url_handler(url):
+    url_info = utils.url_split(url)
+    if 'instagram.com' in url_info.domain:
+        service_handler_instagram(url_info)
+    else:
+        text = "Sorry, I can't download media from that website yet"
+        tgbot.send_message(current_update.effective_chat.id, text)
+    return
+
+
+def service_handler_instagram(url_info):
+    print(url_info)
+    chat_id = current_update.effective_chat.id
+    components_length = len(url_info.components)
+    if not components_length:
+        text = "That instagram link is malformed or no media exists at link"
+        tgbot.send_message(chat_id, text)
         return
 
-    media_items = igbot.get_post_media(message)
-    if not media_items:
-        tgbot.send_message(chat_id=chat_id, text="The media type you "
-                           "sent may not be supported")
+    if components_length == 1:
+        # 1 means it's a username (assumed)
+        username = url_info.components[0]
+        userinfo = igbot.username_info(username)
+        image_url = userinfo['user']['hd_profile_pic_url_info']['url']
+        username = userinfo['user']['username']
+        full_name = userinfo['user']['full_name']
+        tgbot.send_document(document=image_url, filename=f"{username}.jpg",
+                            chat_id=chat_id, caption=full_name)
         return
 
-    send_media(chat_id, media_items)
+    link_type = url_info.components[0]
+    if link_type == 'p' or link_type == 'reel':  # post and reels
+        media_items = igbot.get_post_media(url_info.url)
+        if not media_items:
+            text = "The media type you sent may not be supported"
+            tgbot.send_message(chat_id, text=text)
+            return
+
+        send_media(chat_id, media_items)
+        return
+    elif link_type == 'stories':
+        return
+
+    return
 
 
 def send_media(chat_id, media_array, group=True, send_caption=False):
