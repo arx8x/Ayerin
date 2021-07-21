@@ -85,6 +85,9 @@ class IGBot(Client):
             print(e)
             return None
 
+    def get_story_media(self, media_id):
+        return self.__media_objects_from_media_id(media_id)
+
     def __create_media_object(self, media_dict):
         # key_dict = {
         #     1: 'image_versions2',

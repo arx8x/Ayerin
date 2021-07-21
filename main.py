@@ -44,7 +44,6 @@ def url_handler(url):
 
 
 def service_handler_instagram(url_info):
-    print(url_info)
     chat_id = current_update.effective_chat.id
     components_length = len(url_info.components)
     if not components_length:
@@ -74,6 +73,9 @@ def service_handler_instagram(url_info):
         send_media(chat_id, media_items)
         return
     elif link_type == 'stories':
+        media_id = url_info.components[2]
+        media = igbot.get_story_media(media_id)
+        send_media(chat_id, media)
         return
 
     return
