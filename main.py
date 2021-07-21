@@ -1,12 +1,12 @@
 #!/usr/bin/python3
 import os
 import re
-from __shared import igbot
+from __shared import igbot, tgbot, tgupdater
 import urllib.request
 from urllib.parse import urlparse
 from telegram import (constants as tgconstants,
                       InputMediaDocument as TGMediaDocument)
-from telegram.ext import Updater, MessageHandler, Filters
+from telegram.ext import MessageHandler, Filters
 
 
 # helper functions
@@ -26,13 +26,17 @@ def download_file(url, local_path, headers=[]):
 
 
 # bot message handlers
-# TODO: handle IG stuff separately, streamline media operations
 def message_handler(update, context):
     message = update.message.text
     chat_id = update.effective_chat.id
     # bot currently only supports instagram
     # assuming all links are instagram links
-    regex = re.compile('.*instagram.com/([\w\-\_]{2,}?)(?:\?.*|$)')
+    url_download_handler_instagram(message, chat_id)
+    return
+
+
+def url_download_handler_instagram(message, chat_id):
+    regex = re.compile('.*instagram.com/([\w\-\_\.]{2,}?)(?:\?.*|$)')
     matches = regex.findall(message)
     # this regex is for matching username
     # if mathches, get username and send back profile picture
@@ -47,24 +51,25 @@ def message_handler(update, context):
             if not download_file(image_url, download_path):
                 raise Exception("file not found")
             document = open(download_path, 'rb')
-            context.bot.send_document(document=document,
-                                      filename=f"{username}.jpg",
-                                      chat_id=chat_id, caption=full_name)
+            tgbot.send_document(document=document,
+                                filename=f"{username}.jpg",
+                                chat_id=chat_id, caption=full_name)
             os.unlink(download_path)
         except Exception:
-            context.bot.send_message("Unable to download profile picture")
+            tgbot.send_message(chat_id=chat_id,
+                               text="Unable to download profile picture")
         return
 
     # TODO: pick media objects from igbot rather than raw dicts
     media_urls = igbot.get_media_urls(message)
     if not media_urls:
-        context.bot.send_message(chat_id=chat_id, text="The media type you "
-                                 "sent may not be supported")
+        tgbot.send_message(chat_id=chat_id, text="The media type you "
+                           "sent may not be supported")
         return
     # TODO: filesize(from media objects) before download and send chat action
     input_media_files = []
-    context.bot.send_chat_action(chat_id,
-                                 tgconstants.CHATACTION_UPLOAD_DOCUMENT)
+    tgbot.send_chat_action(chat_id,
+                           tgconstants.CHATACTION_UPLOAD_DOCUMENT)
     for media_url in media_urls:
         input_media = TGMediaDocument(media_url)
         input_media_files.append(input_media)
@@ -85,7 +90,8 @@ def message_handler(update, context):
         # context.bot.send_document(document=document, chat_id=chat_id)
         # document.close()
         # os.unlink(download_path)
-    context.bot.send_media_group(chat_id=chat_id, media=input_media_files)
+    tgbot.send_media_group(chat_id=chat_id, media=input_media_files)
+
 
 # BEGIN PROCEDURE
 # create temporary downlaod paths
@@ -94,15 +100,9 @@ for sv in ['instagram', 'youtube', 'pinterest']:
     if not os.path.exists(path):
         os.makedirs(path)
 
-# TODO: move to __shared
-bot_token = os.getenv('bot_token')
-if not bot_token:
-    print("Bot token not defined")
-    exit(-1)
 
-updater = Updater(bot_token)
 handler = MessageHandler(Filters.text, message_handler)
-updater.dispatcher.add_handler(handler)
+tgupdater.dispatcher.add_handler(handler)
 
-updater.start_polling()
-updater.idle()
+tgupdater.start_polling()
+tgupdater.idle()
