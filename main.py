@@ -4,7 +4,8 @@ import re
 from __shared import igbot
 import urllib.request
 from urllib.parse import urlparse
-from telegram import constants as tgconstants
+from telegram import (constants as tgconstants,
+                      InputMediaDocument as TGMediaDocument)
 from telegram.ext import Updater, MessageHandler, Filters
 
 
@@ -61,25 +62,30 @@ def message_handler(update, context):
                                  "sent may not be supported")
         return
     # TODO: filesize(from media objects) before download and send chat action
+    input_media_files = []
+    context.bot.send_chat_action(chat_id,
+                                 tgconstants.CHATACTION_UPLOAD_DOCUMENT)
     for media_url in media_urls:
-        file_name = url_filename(media_url)
-        download_path = "/tmp/instagram/" + file_name
-        if not download_file(media_url, download_path,
-                             [('User-Agent', igbot.user_agent)]):
-            context.bot.send_message(chat_id=chat_id,
-                                     text="Unable to download media")
-            return
-        document = open(download_path, 'rb')
-        document.seek(0, os.SEEK_END)
-        file_size = document.tell()
-        if file_size > 1048576:  # 1 MB
-            context.bot.send_chat_action(chat_id,
-                                         tgconstants.CHATACTION_UPLOAD_DOCUMENT)
-        document.seek(0, os.SEEK_SET)
-        context.bot.send_document(document=document, chat_id=chat_id)
-        document.close()
-        os.unlink(download_path)
-
+        input_media = TGMediaDocument(media_url)
+        input_media_files.append(input_media)
+        # file_name = url_filename(media_url)
+        # download_path = "/tmp/instagram/" + file_name
+        # if not download_file(media_url, download_path,
+        #                      [('User-Agent', igbot.user_agent)]):
+        #     context.bot.send_message(chat_id=chat_id,
+        #                              text="Unable to download media")
+        #     return
+        # document = open(download_path, 'rb')
+        # document.seek(0, os.SEEK_END)
+        # file_size = document.tell()
+        # if file_size > 1048576:  # 1 MB
+        #     context.bot.send_chat_action(chat_id,
+        #                                  tgconstants.CHATACTION_UPLOAD_DOCUMENT)
+        # document.seek(0, os.SEEK_SET)
+        # context.bot.send_document(document=document, chat_id=chat_id)
+        # document.close()
+        # os.unlink(download_path)
+    context.bot.send_media_group(chat_id=chat_id, media=input_media_files)
 
 # BEGIN PROCEDURE
 # create temporary downlaod paths
