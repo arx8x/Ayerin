@@ -105,7 +105,7 @@ def service_handler_youtube(url_info):
             name += '*'
         if name == 'tiny':
             name = 'MP3 Audio'
-            format_id = 999
+            format_id = 'AUD'
         button = InlineKeyboardButton(
             name, callback_data=f"yt:{id}:{format_id}:{post_process}")
         # create a matrix of 2 buttons per row
@@ -135,12 +135,14 @@ def service_handler_youtube_callback(args):
     tgbot.edit_message_reply_markup(
         chat_id, reply_markup=None, message_id=message_id)
 
-    yt = YT(id, 'bestaudio' if format == '999' else format)
+    yt = YT(id, format)
     yt.post_process = post_process
-    path = yt.download_audio() if format == '999' else yt.download_video()
-    file_handle = open(path, 'rb')
-    tgbot.send_document(chat_id, document=file_handle)
-    os.unlink(path)
+    media = yt.download(audio_only=(format == 'AUD'))
+    if media:
+        file_handle = open(media.local_path, 'rb')
+        file_name = media.file_name
+        tgbot.send_document(chat_id, document=file_handle, filename=file_name)
+        os.unlink(media.local_path)
 
 
 def service_handler_instagram(url_info):

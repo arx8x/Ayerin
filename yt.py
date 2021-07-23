@@ -1,8 +1,6 @@
 import youtube_dl
-from json import dumps as j
-from telegram import bot, InlineKeyboardButton, InlineKeyboardMarkup
-from dotenv import load_dotenv
 import os
+from mediatypes import MediaOject, MediaType
 
 
 class YT:
@@ -58,30 +56,34 @@ class YT:
         video_info['formats'] = qualities
         return video_info
 
-    def download_audio(self):
-        self.options['format'] = 'bestaudio'
-        if self.post_process:
-            self.options['postprocessors'] = [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3'
-            }]
-            file_path = f"{self.work_path}{self.id}_{self.format}.mp3"
-        downloader = youtube_dl.YoutubeDL(self.options)
-        info = downloader.extract_info(self.url)
-        if not self.post_process:
-            file_path = downloader.prepare_filename(info)
-        return file_path
+    def download(self, audio_only=False):
+        media_type = MediaType.VIDEO
+        if audio_only:
+            media_type = MediaType.AUDIO
+            self.options['format'] = 'bestaudio'
+            if self.post_process:
+                self.options['postprocessors'] = [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3'
+                }]
+                file_path = f"{self.work_path}{self.id}_{self.format}.mp3"
+        else:
+            self.options['format'] = f"{self.format}+bestaudio"
+            if self.post_process:
+                self.options['postprocessors'] = [{
+                    'key': 'FFmpegVideoConvertor',
+                    'preferedformat': 'mp4'
+                }]
+                file_path = f"{self.work_path}{self.id}_{self.format}.mp4"
 
-    def download_video(self):
-        self.options['format'] = f"{self.format}+bestaudio"
-        if self.post_process:
-            self.options['postprocessors'] = [{
-                'key': 'FFmpegVideoConvertor',
-                'preferedformat': 'mp4'
-            }]
-            file_path = f"{self.work_path}{self.id}_{self.format}.mp4"
         downloader = youtube_dl.YoutubeDL(self.options)
         info = downloader.extract_info(self.url)
         if not self.post_process:
             file_path = downloader.prepare_filename(info)
-        return file_path
+        if not os.path.exists(file_path):
+            return None
+        media = MediaOject(url=None, mediatype=media_type)
+        media.local_path = file_path
+        media.caption = info['title']
+        media.file_name = info['title'] + os.path.splitext(file_path)[1]
+        return media

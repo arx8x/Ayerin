@@ -6,6 +6,7 @@ from typing import Optional
 class MediaType(Enum):
     IMAGE = 1
     VIDEO = 2
+    AUDIO = 3
 
 
 @dataclass
