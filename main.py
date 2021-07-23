@@ -59,6 +59,7 @@ def url_handler(url):
 
 def service_handler_youtube(url_info):
     chat_id = current_update.effective_chat.id
+    tgbot.send_chat_action(chat_id, action=tgconstants.CHATACTION_TYPING)
     id = url_info.components[0] if url_info.domain == \
         'youtu.be' else url_info.query['v'][0]
     yt = YT(id, 0)
@@ -81,8 +82,8 @@ def service_handler_youtube(url_info):
     text = f"<b>{video_info['title']}</b>{thumb_markup}"
 
     # views and ratings
-    text += (f"👁 {video_info['view_count']}  👍 {video_info['like_count']}  👎 "
-             f"{video_info['dislike_count']}\n")
+    # text += (f"👁 {video_info['view_count']}  👍 {video_info['like_count']}  👎 "
+    #          f"{video_info['dislike_count']}\n")
 
     # video description
     if video_info['description']:
@@ -138,6 +139,8 @@ def service_handler_youtube_callback(args):
     chat_id = current_update.effective_chat.id
     tgbot.edit_message_reply_markup(
         chat_id, reply_markup=None, message_id=message_id)
+    tgbot.answer_callback_query(current_update.callback_query.id,
+                                "Your video is being processed. Please wait...")
 
     yt = YT(id, format)
     yt.post_process = post_process
@@ -147,6 +150,8 @@ def service_handler_youtube_callback(args):
     if media:
         file_handle = open(media.local_path, 'rb')
         file_name = media.file_name
+        tgbot.send_chat_action(
+            chat_id, action=tgconstants.CHATACTION_UPLOAD_DOCUMENT)
         tgbot.send_document(chat_id, document=file_handle, filename=file_name)
         os.unlink(media.local_path)
 
