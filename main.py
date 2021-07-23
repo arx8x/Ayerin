@@ -95,6 +95,7 @@ def service_handler_youtube(url_info):
     button_buffer = []
     for index, (name, format) in enumerate(video_info['formats'].items()):
         post_process = 1
+        add_audio = 0
         format_id = format['format_id']
         # flag to indicate, the file can be downloaded and sent without
         # any processing
@@ -103,11 +104,13 @@ def service_handler_youtube(url_info):
             # * in button text indicates it'll be faster
             # since there's no post processing
             name += '*'
+        if not format['asr']:
+            add_audio = 1
         if name == 'tiny':
             name = 'MP3 Audio'
             format_id = 'AUD'
         button = InlineKeyboardButton(
-            name, callback_data=f"yt:{id}:{format_id}:{post_process}")
+            name, callback_data=f"yt:{id}:{format_id}:{post_process}:{add_audio}")
         # create a matrix of 2 buttons per row
         if len(button_buffer) < 2:
             button_buffer.append(button)
@@ -125,11 +128,12 @@ def service_handler_youtube(url_info):
 
 
 def service_handler_youtube_callback(args):
-    if len(args) < 4:
+    if len(args) < 5:
         return
     id = args[1]
     format = args[2]
-    post_process = bool(args[3])
+    post_process = args[3] != '0'
+    add_audio = args[4] != '0'
     message_id = current_update.callback_query.message.message_id
     chat_id = current_update.effective_chat.id
     tgbot.edit_message_reply_markup(
@@ -137,7 +141,9 @@ def service_handler_youtube_callback(args):
 
     yt = YT(id, format)
     yt.post_process = post_process
-    media = yt.download(audio_only=(format == 'AUD'))
+    yt.add_audio = add_audio
+    yt.audio_only = format == 'AUD'
+    media = yt.download()
     if media:
         file_handle = open(media.local_path, 'rb')
         file_name = media.file_name

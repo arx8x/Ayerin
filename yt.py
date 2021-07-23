@@ -13,6 +13,8 @@ class YT:
     format
     id
     post_process = True
+    add_audio = False
+    audio_only = False
 
     def __init__(self, id, format):
         self.id = id
@@ -56,9 +58,9 @@ class YT:
         video_info['formats'] = qualities
         return video_info
 
-    def download(self, audio_only=False):
+    def download(self):
         media_type = MediaType.VIDEO
-        if audio_only:
+        if self.audio_only:
             media_type = MediaType.AUDIO
             self.options['format'] = 'bestaudio'
             if self.post_process:
@@ -67,23 +69,36 @@ class YT:
                     'preferredcodec': 'mp3'
                 }]
                 file_path = f"{self.work_path}{self.id}_{self.format}.mp3"
+                self.options['outtmpl'] = file_path
         else:
-            self.options['format'] = f"{self.format}+bestaudio"
+            self.options['format'] = self.format
+            if self.add_audio:
+                self.options['format'] += "+bestaudio"
             if self.post_process:
                 self.options['postprocessors'] = [{
                     'key': 'FFmpegVideoConvertor',
                     'preferedformat': 'mp4'
                 }]
                 file_path = f"{self.work_path}{self.id}_{self.format}.mp4"
+                self.options['outtmpl'] = file_path
 
+        print(self.options)
         downloader = youtube_dl.YoutubeDL(self.options)
         info = downloader.extract_info(self.url)
         if not self.post_process:
             file_path = downloader.prepare_filename(info)
+            # this function can often return a wrong filename
+            if not os.path.exists(file_path):
+                # if prepare_filename returns a wrong filename,
+                # mkv is the best guess
+                file_path = f"{self.work_path}{self.id}_{self.format}.mkv"
+            print("auto_path", file_path)
         if not os.path.exists(file_path):
+            print("no file")
             return None
         media = MediaOject(url=None, mediatype=media_type)
         media.local_path = file_path
         media.caption = info['title']
+        print(file_path)
         media.file_name = info['title'] + os.path.splitext(file_path)[1]
         return media
