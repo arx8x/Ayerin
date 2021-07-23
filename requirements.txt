@@ -1,5 +1,7 @@
-python_telegram_bot==13.7
 validators==0.18.2
+python_telegram_bot==13.7
 instagram_private_api==1.6.0
+youtube_dl==2021.6.6
+dataclasses==0.8
 python-dotenv==0.18.0
 telegram==0.0.1

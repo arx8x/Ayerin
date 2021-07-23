@@ -1,14 +1,14 @@
 #!/usr/bin/python3
 import os
-import re
-from time import sleep
+from yt import YT
 import validators
 from __shared import igbot, tgbot, tgupdater
 from telegram import (constants as tgconstants,
                       InputMediaDocument as TGMediaDocument)
-from telegram.ext import MessageHandler, Filters
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import MessageHandler, Filters, CallbackQueryHandler
 import utils
-
+import json
 # global variable to hold the current Update
 # this only works since these handlers are blocking/synchronous
 # RENOVE THIS WHEN DOING Async to avoid race conditions
@@ -28,6 +28,18 @@ def message_handler(update, context):
     return
 
 
+def callback_query_handler(update, context):
+    global current_update
+    # print(update.callback_query.message.message_id)
+    # print(update.callback_query.data)
+    current_update = update
+    args = update.callback_query.data.split(':')
+    if not args:
+        return
+    if args[0] == 'yt':
+        service_handler_youtube_callback(args)
+
+
 def chat_message_handler(message):
     tgbot.send_message(current_update.effective_chat.id,
                        "Send me a social media link to begin")
@@ -37,10 +49,98 @@ def url_handler(url):
     url_info = utils.url_split(url)
     if 'instagram.com' in url_info.domain:
         service_handler_instagram(url_info)
+    elif 'youtube.com' in url_info.domain or 'youtu.be' in url_info.domain:
+        service_handler_youtube(url_info)
     else:
         text = "Sorry, I can't download media from that website yet"
         tgbot.send_message(current_update.effective_chat.id, text)
     return
+
+
+def service_handler_youtube(url_info):
+    chat_id = current_update.effective_chat.id
+    id = url_info.components[0] if url_info.domain == \
+        'youtu.be' else url_info.query['v'][0]
+    yt = YT(id, 0)
+    video_info = yt.video_info()
+
+    thumb_markup = ''
+    # link a '.' with youtube preview so that the image will appear
+    # on the message as a preview (a neat little trick)
+    if len(video_info['thumbnails']) > 0:
+        thumb_index = 0
+        try:
+            if video_info['thumbnails'][3]:
+                thumb_index = 3
+            elif video_info['thumbnails'][2]:
+                thumb_index = 2
+        except IndexError:
+            thumb_index = 0
+        thumb_url = video_info['thumbnails'][thumb_index]['url']
+        thumb_markup = f"<a href='{thumb_url}'>.</a>\n"
+    text = f"<b>{video_info['title']}</b>{thumb_markup}"
+
+    # views and ratings
+    text += (f"👁 {video_info['view_count']}  👍 {video_info['like_count']}  👎 "
+             f"{video_info['dislike_count']}\n")
+
+    # video description
+    if video_info['description']:
+        description = video_info['description']
+        text += description if len(
+            description) < 120 else f"{description[:120]}..."
+        text += "\n"
+
+    inline_buttons = []
+    button_buffer = []
+    for index, (name, format) in enumerate(video_info['formats'].items()):
+        post_process = 1
+        format_id = format['format_id']
+        # flag to indicate, the file can be downloaded and sent without
+        # any processing
+        if format['ext'] == 'mp4' and format['fps'] and format['asr']:
+            post_process = 0
+            # * in button text indicates it'll be faster
+            # since there's no post processing
+            name += '*'
+        if name == 'tiny':
+            name = 'MP3 Audio'
+            format_id = 999
+        button = InlineKeyboardButton(
+            name, callback_data=f"yt:{id}:{format_id}:{post_process}")
+        # create a matrix of 2 buttons per row
+        if len(button_buffer) < 2:
+            button_buffer.append(button)
+        else:
+            inline_buttons.append(button_buffer)
+            button_buffer = [button]
+    # if total number of formats is odd, the last button can be left out
+    # because the condifion above pushes it to final array when the
+    # button_buffer has 2 button
+    if button_buffer:
+        inline_buttons.append(button_buffer)
+
+    tgbot.sendMessage(chat_id, text, reply_markup=InlineKeyboardMarkup(
+        inline_buttons), parse_mode=tgconstants.PARSEMODE_HTML)
+
+
+def service_handler_youtube_callback(args):
+    if len(args) < 4:
+        return
+    id = args[1]
+    format = args[2]
+    post_process = bool(args[3])
+    message_id = current_update.callback_query.message.message_id
+    chat_id = current_update.effective_chat.id
+    tgbot.edit_message_reply_markup(
+        chat_id, reply_markup=None, message_id=message_id)
+
+    yt = YT(id, 'bestaudio' if format == '999' else format)
+    yt.post_process = post_process
+    path = yt.download_audio() if format == '999' else yt.download_video()
+    file_handle = open(path, 'rb')
+    tgbot.send_document(chat_id, document=file_handle)
+    os.unlink(path)
 
 
 def service_handler_instagram(url_info):
@@ -113,8 +213,11 @@ for sv in ['instagram', 'youtube', 'pinterest']:
         os.makedirs(path)
 
 
-handler = MessageHandler(Filters.text, message_handler)
-tgupdater.dispatcher.add_handler(handler)
+message_handler1 = MessageHandler(Filters.text, message_handler)
+callback_query_handler1 = CallbackQueryHandler(callback_query_handler)
+tgupdater.dispatcher.add_handler(message_handler1)
+tgupdater.dispatcher.add_handler(callback_query_handler1)
 
 tgupdater.start_polling()
+tgupdater.idle()
 tgupdater.idle()
