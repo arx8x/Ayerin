@@ -3,7 +3,7 @@ import codecs
 import os.path
 import validators
 from utils import url_filename
-from mediatypes import MediaOject, MediaType
+from mediatypes import MediaObject, MediaType
 from instagram_private_api import (
         Client, ClientCookieExpiredError, ClientLoginRequiredError)
 
@@ -103,7 +103,7 @@ class IGBot(Client):
             selected_media = media_dict['video_versions'][0]
             type = MediaType.VIDEO
 
-        media = MediaOject(selected_media['url'], mediatype=type)
+        media = MediaObject(selected_media['url'], mediatype=type)
         media.height = selected_media['height']
         media.width = selected_media['width']
         media.file_name = url_filename(media.url)

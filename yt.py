@@ -1,6 +1,6 @@
 import youtube_dl
 import os
-from mediatypes import MediaOject, MediaType
+from mediatypes import MediaObject, MediaType
 
 
 class YT:
@@ -24,7 +24,9 @@ class YT:
             os.makedirs(self.work_path)
         self.options['cachedir'] = self.work_path
         self.options['cookiefile'] = f"{self.work_path}.cookie"
-        self.options['outtmpl'] = f"{self.work_path}%(id)s_{self.format}.%(ext)s"
+        self.options['outtmpl'] = (
+            f"{self.work_path}%(id)s_{self.format}.%(ext)s"
+        )
 
     def video_info(self):
         yt = youtube_dl.YoutubeDL(self.options)
@@ -32,14 +34,16 @@ class YT:
 
         qualities = {}
         for index, format in enumerate(video_info['formats']):
-            format_name = format['format_note'] if format['format_note'] else format['quality']
+            format_name = format['format_note'] if \
+                format['format_note'] else format['quality']
             print(f"format: {format_name} -- {format['format_id']} -- {index}")
             if format_name not in qualities:
                 print("new format")
                 qualities[format_name] = format
             else:
                 if qualities[format_name]['ext'] == 'mp4' and \
-                 qualities[format_name]['fps'] and qualities[format_name]['asr']:
+                   qualities[format_name]['fps'] and \
+                   qualities[format_name]['asr']:
                     print("quality already optimal")
                     continue
                 if format['fps'] and format['asr']:
@@ -96,7 +100,7 @@ class YT:
         if not os.path.exists(file_path):
             print("no file")
             return None
-        media = MediaOject(url=None, mediatype=media_type)
+        media = MediaObject(url=None, mediatype=media_type)
         media.local_path = file_path
         media.caption = info['title']
         print(file_path)

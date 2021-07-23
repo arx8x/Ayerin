@@ -8,7 +8,6 @@ from telegram import (constants as tgconstants,
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import MessageHandler, Filters, CallbackQueryHandler
 import utils
-import json
 # global variable to hold the current Update
 # this only works since these handlers are blocking/synchronous
 # RENOVE THIS WHEN DOING Async to avoid race conditions
@@ -82,7 +81,7 @@ def service_handler_youtube(url_info):
     text = f"<b>{video_info['title']}</b>{thumb_markup}"
 
     # views and ratings
-    # text += (f"👁 {video_info['view_count']}  👍 {video_info['like_count']}  👎 "
+    # text += (f"👁 {video_info['view_count']} 👍 {video_info['like_count']}  👎 "
     #          f"{video_info['dislike_count']}\n")
 
     # video description
@@ -111,7 +110,8 @@ def service_handler_youtube(url_info):
             name = 'MP3 Audio'
             format_id = 'AUD'
         button = InlineKeyboardButton(
-            name, callback_data=f"yt:{id}:{format_id}:{post_process}:{add_audio}")
+            name,
+            callback_data=f"yt:{id}:{format_id}:{post_process}:{add_audio}")
         # create a matrix of 2 buttons per row
         if len(button_buffer) < 2:
             button_buffer.append(button)
@@ -139,8 +139,8 @@ def service_handler_youtube_callback(args):
     chat_id = current_update.effective_chat.id
     tgbot.edit_message_reply_markup(
         chat_id, reply_markup=None, message_id=message_id)
-    tgbot.answer_callback_query(current_update.callback_query.id,
-                                "Your video is being processed. Please wait...")
+    text = "Your video is being processed. Please wait..."
+    tgbot.answer_callback_query(current_update.callback_query.id, text)
 
     yt = YT(id, format)
     yt.post_process = post_process

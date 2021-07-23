@@ -10,7 +10,7 @@ class MediaType(Enum):
 
 
 @dataclass
-class MediaOject:
+class MediaObject:
     url: str
     mediatype: MediaType
     filesize: Optional[int] = 0
