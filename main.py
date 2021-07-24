@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import os
+from io import BufferedIOBase
 from yt import YT
 import validators
 from __shared import igbot, tgbot, tgupdater
@@ -69,7 +70,7 @@ def service_handler_pinterest(url_info):
         text = "Sorry, I was unable to find any media at the given link"
         tgbot.send_message(chat_id, text)
         return
-    send_media(chat_id, [media], send_caption=False)
+    send_media(chat_id, [media], send_caption=True)
 
 
 def service_handler_youtube(url_info):
@@ -164,12 +165,7 @@ def service_handler_youtube_callback(args):
     yt.audio_only = format == 'AUD'
     media = yt.download()
     if media:
-        file_handle = open(media.local_path, 'rb')
-        file_name = media.file_name
-        tgbot.send_chat_action(
-            chat_id, action=tgconstants.CHATACTION_UPLOAD_DOCUMENT)
-        tgbot.send_document(chat_id, document=file_handle, filename=file_name)
-        os.unlink(media.local_path)
+        send_media(chat_id, [media])
 
 
 def service_handler_instagram(url_info):
@@ -214,21 +210,32 @@ def send_media(chat_id, media_array, group=True, send_caption=False):
     # TODO: check file size before sending
     if not media_array:
         return
-    caption = media_array[0].caption if send_caption else ''
-    if len(media_array) == 1:
-        tgbot.send_document(chat_id,
-                            document=media_array[0].url, caption=caption)
-        return
-    input_media_files = []
     tgbot.send_chat_action(chat_id, tgconstants.CHATACTION_UPLOAD_DOCUMENT)
+    if len(media_array) == 1:
+        group = False
+
+    input_media_files = []
     for media_item in media_array:
+        file = None
+        if media_item.url:
+            file = media_item.url
+        elif media_item.local_path:
+            if os.path.exists(media_item.local_path):
+                file = open(media_item.local_path, 'rb')
+        if not file:
+            continue
+
         if group:
             caption = media_item.caption if send_caption else ''
-            input_media = TGMediaDocument(media_item.url, caption=caption)
+            input_media = TGMediaDocument(
+                file, caption=caption, filename=media_item.file_name)
             input_media_files.append(input_media)
         else:
             caption = media_item.caption if send_caption else ''
-            tgbot.send_document(document=media_item.url, chat_id=chat_id)
+            tgbot.send_document(document=file, chat_id=chat_id,
+                                filename=media_item.file_name, caption=caption)
+        if isinstance(file, BufferedIOBase):
+            file.close()
 
     if input_media_files:
         print("Send group")
@@ -249,5 +256,7 @@ tgupdater.dispatcher.add_handler(message_handler1)
 tgupdater.dispatcher.add_handler(callback_query_handler1)
 
 tgupdater.start_polling()
+tgupdater.idle()
+tgupdater.idle()
 tgupdater.idle()
 tgupdater.idle()
