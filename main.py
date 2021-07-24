@@ -8,6 +8,7 @@ from telegram import (constants as tgconstants,
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import MessageHandler, Filters, CallbackQueryHandler
 import utils
+from pin import Pin
 # global variable to hold the current Update
 # this only works since these handlers are blocking/synchronous
 # RENOVE THIS WHEN DOING Async to avoid race conditions
@@ -46,14 +47,29 @@ def chat_message_handler(message):
 
 def url_handler(url):
     url_info = utils.url_split(url)
+    # TODO: better way to check URL
     if 'instagram.com' in url_info.domain:
         service_handler_instagram(url_info)
+    elif 'pinterest.' in url_info.domain or 'pin.it' in url_info.domain:
+        service_handler_pinterest(url_info)
     elif 'youtube.com' in url_info.domain or 'youtu.be' in url_info.domain:
         service_handler_youtube(url_info)
     else:
         text = "Sorry, I can't download media from that website yet"
         tgbot.send_message(current_update.effective_chat.id, text)
     return
+
+
+def service_handler_pinterest(url_info):
+    chat_id = current_update.effective_chat.id
+    pin = Pin(url_info)
+    media = pin.get_video()
+    print(media)
+    if not media:
+        text = "Sorry, I was unable to find any media at the given link"
+        tgbot.send_message(chat_id, text)
+        return
+    send_media(chat_id, [media], send_caption=False)
 
 
 def service_handler_youtube(url_info):
@@ -81,7 +97,7 @@ def service_handler_youtube(url_info):
     text = f"<b>{video_info['title']}</b>{thumb_markup}"
 
     # views and ratings
-    # text += (f"👁 {video_info['view_count']} 👍 {video_info['like_count']}  👎 "
+    # text += (f"👁 {video_info['view_count']}   {video_info['like_count']}  👎 "
     #          f"{video_info['dislike_count']}\n")
 
     # video description
@@ -195,6 +211,7 @@ def service_handler_instagram(url_info):
 
 
 def send_media(chat_id, media_array, group=True, send_caption=False):
+    # TODO: check file size before sending
     if not media_array:
         return
     caption = media_array[0].caption if send_caption else ''
