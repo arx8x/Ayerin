@@ -5,19 +5,21 @@ from telegram.ext import Updater
 load_dotenv()
 
 # instagram bot
-username = getenv('username')
-password = getenv('password')
-if not username or not password:
-    print("[!] Credentials not configured")
-    exit(-1)
+ig_username = getenv('ig_username')
+ig_password = getenv('ig_password')
 
-igbot = IGBot(username, password)
+igbot = None
+if ig_username and ig_password:
+    igbot = IGBot(ig_username, ig_password)
+else:
+    print("[!] IG credentials not configured")
+
 
 # telegram bot
-bot_token = getenv('bot_token')
-if not bot_token:
+tg_bot_token = getenv('tg_bot_token')
+if not tg_bot_token:
     print("[!] Telegram token not defined")
     exit(-1)
 
-tgupdater = Updater(bot_token)
+tgupdater = Updater(tg_bot_token)
 tgbot = tgupdater.bot

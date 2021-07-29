@@ -170,6 +170,12 @@ def service_handler_youtube_callback(args):
 
 def service_handler_instagram(url_info):
     chat_id = current_update.effective_chat.id
+    if not igbot:
+        tgbot.send_message(chat_id, "<b>Error</b>\n"
+                           "Sorry, I'm unable to handle the instagram media.\n"
+                           "Please use /report command to report this issue.",
+                           parse_mode=tgconstants.PARSEMODE_HTML)
+        return
     components_length = len(url_info.components)
     if not components_length:
         text = "That instagram link is malformed or no media exists at link"
