@@ -229,6 +229,8 @@ def send_media(chat_id, media_array, group=True, send_caption=False):
             if os.path.exists(media_item.local_path):
                 if not tg_local_bot:
                     file = open(media_item.local_path, 'rb')
+                else:
+                    file = media_item.local_path
             else:
                 continue
         if not file:
