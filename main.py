@@ -3,7 +3,7 @@ import os
 from io import BufferedIOBase
 from yt import YT
 import validators
-from __shared import igbot, tgbot, tgupdater
+from __shared import igbot, tgbot, tgupdater, tg_local_bot
 from telegram import (constants as tgconstants,
                       InputMediaDocument as TGMediaDocument)
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -227,7 +227,10 @@ def send_media(chat_id, media_array, group=True, send_caption=False):
             file = media_item.url
         elif media_item.local_path:
             if os.path.exists(media_item.local_path):
-                file = open(media_item.local_path, 'rb')
+                if not tg_local_bot:
+                    file = open(media_item.local_path, 'rb')
+            else:
+                continue
         if not file:
             continue
 
