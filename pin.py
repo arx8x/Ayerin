@@ -43,18 +43,18 @@ class Pin:
 
         self.__page_data = None
         page_data_str = ''
-        try:
-            request = urlrequest.urlopen(self.url)
-            page_data = request.read()
-            page_data_str = page_data.decode('utf-8')
-        except Exception as e:
-            # pinterest can sometimes do a region based redirect
-            redirect_url = e.headers.get('location')
-            if redirect_url:
-                print(f"Pinterest is redirecting to {redirect_url}")
-                request = urlrequest.urlopen(redirect_url)
-                page_data = request.read()
-                page_data_str = page_data.decode('utf-8')
+        request = urlrequest.urlopen(self.url)
+        page_data = request.read()
+        page_data_str = page_data.decode('utf-8')
+        # try:
+        # except Exception as e:
+        #     # pinterest can sometimes do a region based redirect
+        #     redirect_url = e.headers.get('location')
+        #     if redirect_url:
+        #         print(f"Pinterest is redirecting to {redirect_url}")
+        #         request = urlrequest.urlopen(redirect_url)
+        #         page_data = request.read()
+        #         page_data_str = page_data.decode('utf-8')
         regex = r"\<script\s+id=\"initial\-state\".+?\>(\{.+?\})\<\/script\>"
         # extract json page data from the source
         matches = re.findall(regex, page_data_str)

@@ -188,7 +188,7 @@ def service_handler_instagram(url_info):
         return
 
     link_type = url_info.components[0]
-    if link_type == 'p' or link_type == 'reel':  # post and reels
+    if link_type in ['reel', 'p']:  # post and reels
         media_items = igbot.get_post_media(url_info.url)
         if not media_items:
             text = "The media type you sent may not be supported"
@@ -256,7 +256,4 @@ tgupdater.dispatcher.add_handler(message_handler1)
 tgupdater.dispatcher.add_handler(callback_query_handler1)
 
 tgupdater.start_polling()
-tgupdater.idle()
-tgupdater.idle()
-tgupdater.idle()
 tgupdater.idle()

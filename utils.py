@@ -19,6 +19,7 @@ def get_redirect_url(url):
     # build a custom opener that neuters this behavior
     # so we'll get the redirect url from header without
     # going to the redirect url
+    redirect_url = None
     try:
         opener = urllib.request.build_opener(NoRedirect)
         urllib.request.install_opener(opener)
@@ -26,10 +27,13 @@ def get_redirect_url(url):
     except HTTPError as e:
         header_info = e.info()
         redirect_url = header_info.get('location')
-        return redirect_url
-    except Exception:
-        return None
-    return None
+    except Exception as e:
+        print(e)
+
+    # restore original behavior
+    urllib.request.install_opener(
+        urllib.request.build_opener(urllib.request.HTTPRedirectHandler))
+    return redirect_url
 
 
 def url_filename(url):
