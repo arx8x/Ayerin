@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 import os
-import time
 from io import BufferedIOBase
 from yt import YT
 import validators
@@ -20,13 +19,12 @@ current_update = None
 class AyerinBot:
 
     def __init__(self, update, timeout=180):
-        self.timeout = time
+        self.timeout = timeout
         self.url_info = None
         self.chat_id = None
         self.callback_query_id = None
         self.message_id = None
         self.update = update
-        print(update.callback_query, update.message)
         if update.effective_chat.id:
             self.chat_id = update.effective_chat.id
 
@@ -82,7 +80,6 @@ class AyerinBot:
     def __handle_callback_query(self):
         args = self.update.callback_query.data.split(':')
         self.callback_query_id = self.update.callback_query.id
-        self.remove_inline_keyboard()
         if not args:
             return
         if args[0] == 'yt':
@@ -95,6 +92,7 @@ class AyerinBot:
             self.chat_id, reply_markup=None, message_id=message_id)
 
     def __handle_youtube_callback(self, args):
+        self.remove_inline_keyboard()
         if len(args) < 5:
             return
         id = args[1]
@@ -183,7 +181,7 @@ class AyerinBot:
         text = f"<b>{video_info['title']}</b>{thumb_markup}"
 
         # views and ratings
-        # text += (f"👁 {video_info['view_count']}   {video_info['like_count']}  👎 "
+        # text += (f"👁 {video_info['view_count']}    video_info['like_count']}  👎 "
         #          f"{video_info['dislike_count']}\n")
 
         # video description
@@ -264,6 +262,20 @@ class AyerinBot:
             if not file:
                 continue
 
+            thumb = None
+            thumb_local_path = None
+            if isinstance(media_item.thumbnail, str):
+                if validators.url(media_item.thumbnail):
+                    thumb_local_path = f"/tmp/thumbs/{media_item.file_name}"
+                    if not os.path.exists(thumb_local_path):
+                        utils.download_file(
+                            media_item.thumbnail, thumb_local_path)
+                else:
+                    thumb_local_path = media_item.thumbnail
+
+            if os.path.exists(thumb_local_path):
+                thumb = open(thumb_local_path, 'rb')
+
             if group:
                 caption = media_item.caption if send_caption else ''
                 input_media = TGMediaDocument(
@@ -274,8 +286,11 @@ class AyerinBot:
                 tgbot.send_document(document=file, chat_id=self.chat_id,
                                     filename=media_item.file_name,
                                     caption=caption,
-                                    timeout=300)
+                                    timeout=self.timeout,
+                                    thumb=thumb)
             if isinstance(file, BufferedIOBase):
+                file.close()
+            if isinstance(thumb, BufferedIOBase):
                 file.close()
 
         if input_media_files:
@@ -285,7 +300,7 @@ class AyerinBot:
 
 # BEGIN PROCEDURE
 # create temporary downlaod paths
-for sv in ['instagram', 'youtube', 'pinterest']:
+for sv in ['instagram', 'youtube', 'pinterest', 'thumbs']:
     path = "/tmp/" + sv
     if not os.path.exists(path):
         os.makedirs(path)
@@ -303,4 +318,5 @@ tgupdater.dispatcher.add_handler(message_handler1)
 tgupdater.dispatcher.add_handler(callback_query_handler1)
 
 tgupdater.start_polling()
+tgupdater.idle()
 tgupdater.idle()

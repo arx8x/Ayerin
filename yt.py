@@ -7,7 +7,6 @@ class YT:
     options = {
         'call_home': False,
         'no_color': True,
-        'forcefilename': True
     }
     work_path = '/tmp/youtube/'
     format
@@ -73,7 +72,6 @@ class YT:
                     'preferredcodec': 'mp3'
                 }]
                 file_path = f"{self.work_path}{self.id}_{self.format}.mp3"
-                self.options['outtmpl'] = file_path
         else:
             self.options['format'] = self.format
             if self.add_audio:
@@ -84,13 +82,14 @@ class YT:
                     'preferedformat': 'mp4'
                 }]
                 file_path = f"{self.work_path}{self.id}_{self.format}.mp4"
-                self.options['outtmpl'] = file_path
 
         print(self.options)
         downloader = youtube_dl.YoutubeDL(self.options)
         info = downloader.extract_info(self.url)
+        predetermined_filename = downloader.prepare_filename(info)
+
         if not self.post_process:
-            file_path = downloader.prepare_filename(info)
+            file_path = predetermined_filename
             # this function can often return a wrong filename
             if not os.path.exists(file_path):
                 # if prepare_filename returns a wrong filename,
@@ -98,11 +97,13 @@ class YT:
                 file_path = f"{self.work_path}{self.id}_{self.format}.mkv"
             print("auto_path", file_path)
         if not os.path.exists(file_path):
-            print("no file")
+            print("yt: no file")
             return None
         media = MediaObject(url=None, mediatype=media_type)
+        if info['thumbnails']:
+            if info['thumbnails'][0]:
+                media.thumbnail = info['thumbnails'][0]['url']
         media.local_path = file_path
         media.caption = info['title']
-        print(file_path)
         media.file_name = info['title'] + os.path.splitext(file_path)[1]
         return media

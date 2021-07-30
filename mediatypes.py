@@ -7,6 +7,7 @@ class MediaType(Enum):
     IMAGE = 1
     VIDEO = 2
     AUDIO = 3
+    VIDEOAUDIO = 5
 
 
 @dataclass
@@ -20,3 +21,4 @@ class MediaObject:
     caption: Optional[str] = None
     file_name: Optional[str] = None
     local_path: Optional[str] = None
+    thumbnail: Optional[str] = None
