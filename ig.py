@@ -5,7 +5,7 @@ import validators
 from utils import url_filename
 from mediatypes import MediaObject, MediaType
 from instagram_private_api import (
-        Client, ClientCookieExpiredError, ClientLoginRequiredError)
+    Client, ClientCookieExpiredError, ClientLoginRequiredError)
 
 
 def to_json(python_object):
@@ -62,6 +62,18 @@ class IGBot(Client):
         embed_info = self.oembed(media_url)
         media_id = embed_info['media_id']
         return self.__media_objects_from_media_id(media_id)
+
+    def get_profile_image(self, username):
+        userinfo = self.username_info(username)
+        if not userinfo:
+            return None
+        image_url = userinfo['user']['hd_profile_pic_url_info']['url']
+        username = userinfo['user']['username']
+        full_name = userinfo['user']['full_name']
+        media = MediaObject(url=image_url, mediatype=MediaType.IMAGE)
+        media.file_name = f"{username}.jpg"
+        media.caption = full_name
+        return media
 
     def __media_objects_from_media_id(self, media_id):
         try:

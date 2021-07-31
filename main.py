@@ -162,12 +162,9 @@ class AyerinBot:
         if components_length == 1:
             # 1 means it's a username (assumed)
             username = self.url_info.components[0]
-            userinfo = igbot.username_info(username)
-            image_url = userinfo['user']['hd_profile_pic_url_info']['url']
-            username = userinfo['user']['username']
-            full_name = userinfo['user']['full_name']
-            tgbot.send_document(document=image_url, filename=f"{username}.jpg",
-                                chat_id=self.chat_id, caption=full_name)
+            media = igbot.get_profile_image(username)
+            if media:
+                self.send_media([media], send_caption=True)
             return
 
         link_type = self.url_info.components[0]
@@ -301,7 +298,7 @@ class AyerinBot:
                     else:
                         thumb_local_path = media_item.thumbnail
 
-                if os.path.exists(thumb_local_path):
+                if thumb_local_path and os.path.exists(thumb_local_path):
                     thumb = open(thumb_local_path, 'rb')
 
                 if group:
