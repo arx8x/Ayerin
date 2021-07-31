@@ -136,7 +136,7 @@ class AyerinBot:
         yt.audio_only = format == 'AUD'
         media = yt.download()
         if media:
-            self.send_media([media], send_caption=False)
+            self.send_media([media], send_caption=True)
         else:
             self.send_message("Error")
 
@@ -319,7 +319,7 @@ class AyerinBot:
                 if isinstance(file, BufferedIOBase):
                     file.close()
                 if isinstance(thumb, BufferedIOBase):
-                    file.close()
+                    thumb.close()
 
             if input_media_files:
                 print("Send group")
