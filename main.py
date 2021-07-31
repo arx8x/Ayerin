@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 import os
 from io import BufferedIOBase
+from time import sleep as tsleep
+import threading
 from yt import YT
 import validators
 from __shared import igbot, tgbot, tgupdater, tg_local_bot
@@ -22,6 +24,8 @@ class AyerinBot:
         self.timeout = timeout
         self.url_info = None
         self.chat_id = None
+        self.__is_sending_chat_action = False
+        self.__send_chat_action = False
         self.callback_query_id = None
         self.message_id = None
         self.update = update
@@ -33,6 +37,29 @@ class AyerinBot:
             self.__handle_callback_query()
         elif self.update.message.text:
             self.__handle_text_message()
+
+    def start_sending_upload_action(self):
+        def file_upload_action_thread():
+            max_count = 5
+            if self.__is_sending_chat_action:
+                return
+            self.__is_sending_chat_action = True
+            self.__send_chat_action = True
+            for i in range(max_count):
+                if not self.__send_chat_action:
+                    self.__is_sending_chat_action = False
+                    return
+                self.send_file_sending_action()
+                if(i >= max_count):
+                    return
+                tsleep(4)
+        thread = threading.Thread(
+            target=file_upload_action_thread, name='action_file_upload')
+        thread.daemon = True  # exit with main if it keeps running
+        thread.start()
+
+    def stop_sending_upload_action(self):
+        self.__send_chat_action = False
 
     def __handle_text_message(self):
         self.text_message = self.update.message.text
@@ -242,60 +269,66 @@ class AyerinBot:
         # TODO: check file size before sending
         if not media_array:
             return
-        self.send_file_sending_action()
+        self.start_sending_upload_action()
         if len(media_array) == 1:
             group = False
 
         input_media_files = []
-        for media_item in media_array:
-            file = None
-            if media_item.url:
-                file = media_item.url
-            elif media_item.local_path:
-                if os.path.exists(media_item.local_path):
-                    if not tg_local_bot:
-                        file = open(media_item.local_path, 'rb')
+        try:
+            for media_item in media_array:
+                file = None
+                if media_item.url:
+                    file = media_item.url
+                elif media_item.local_path:
+                    if os.path.exists(media_item.local_path):
+                        if not tg_local_bot:
+                            file = open(media_item.local_path, 'rb')
+                        else:
+                            file = media_item.local_path
                     else:
-                        file = media_item.local_path
-                else:
+                        continue
+                if not file:
                     continue
-            if not file:
-                continue
 
-            thumb = None
-            thumb_local_path = None
-            if isinstance(media_item.thumbnail, str):
-                if validators.url(media_item.thumbnail):
-                    thumb_local_path = f"/tmp/thumbs/{media_item.file_name}"
-                    if not os.path.exists(thumb_local_path):
-                        utils.download_file(
-                            media_item.thumbnail, thumb_local_path)
+                thumb = None
+                thumb_local_path = None
+                if isinstance(media_item.thumbnail, str):
+                    if validators.url(media_item.thumbnail):
+                        thumb_local_path = f"/tmp/thumbs/{media_item.file_name}"
+                        if not os.path.exists(thumb_local_path):
+                            utils.download_file(
+                                media_item.thumbnail, thumb_local_path)
+                    else:
+                        thumb_local_path = media_item.thumbnail
+
+                if os.path.exists(thumb_local_path):
+                    thumb = open(thumb_local_path, 'rb')
+
+                if group:
+                    caption = media_item.caption if send_caption else ''
+                    input_media = TGMediaDocument(
+                        file, caption=caption, filename=media_item.file_name)
+                    input_media_files.append(input_media)
                 else:
-                    thumb_local_path = media_item.thumbnail
+                    caption = media_item.caption if send_caption else ''
+                    tgbot.send_document(document=file, chat_id=self.chat_id,
+                                        filename=media_item.file_name,
+                                        caption=caption,
+                                        timeout=self.timeout,
+                                        thumb=thumb)
+                if isinstance(file, BufferedIOBase):
+                    file.close()
+                if isinstance(thumb, BufferedIOBase):
+                    file.close()
 
-            if os.path.exists(thumb_local_path):
-                thumb = open(thumb_local_path, 'rb')
-
-            if group:
-                caption = media_item.caption if send_caption else ''
-                input_media = TGMediaDocument(
-                    file, caption=caption, filename=media_item.file_name)
-                input_media_files.append(input_media)
-            else:
-                caption = media_item.caption if send_caption else ''
-                tgbot.send_document(document=file, chat_id=self.chat_id,
-                                    filename=media_item.file_name,
-                                    caption=caption,
-                                    timeout=self.timeout,
-                                    thumb=thumb)
-            if isinstance(file, BufferedIOBase):
-                file.close()
-            if isinstance(thumb, BufferedIOBase):
-                file.close()
-
-        if input_media_files:
-            print("Send group")
-            tgbot.send_media_group(self.chat_id, input_media_files)
+            if input_media_files:
+                print("Send group")
+                tgbot.send_media_group(self.chat_id, input_media_files)
+        except Exception as e:
+            print(e)
+        finally:
+            self.stop_sending_upload_action()
+            return
 
 
 # BEGIN PROCEDURE
@@ -318,5 +351,4 @@ tgupdater.dispatcher.add_handler(message_handler1)
 tgupdater.dispatcher.add_handler(callback_query_handler1)
 
 tgupdater.start_polling()
-tgupdater.idle()
 tgupdater.idle()
