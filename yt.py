@@ -88,15 +88,18 @@ class YT:
                     'key': 'FFmpegVideoConvertor',
                     'preferedformat': extension
                 }]
-        else:
-            extension = 'mkv'
 
         print(self.options)
         downloader = youtube_dl.YoutubeDL(self.options)
         info = downloader.extract_info(self.url)
         file_path = downloader.prepare_filename(info)
+        print(file_path)
         if extension:
             file_path = replace_extension(file_path, extension)
+
+        if not os.path.exists(file_path):
+            print("replace_extension")
+            file_path = replace_extension(file_path, 'mkv')
 
         # if not self.post_process:
         #     file_path = predetermined_filename
