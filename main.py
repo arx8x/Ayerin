@@ -136,7 +136,13 @@ class AyerinBot:
         yt.audio_only = format == 'AUD'
         media = yt.download()
         if media:
-            self.send_media([media], send_caption=True)
+            self.start_sending_upload_action()
+            try:
+                self.send_media([media], send_caption=True)
+            except Exception:
+                self.send_message("Error")
+            finally:
+                self.stop_sending_upload_action()
         else:
             self.send_message("Error")
 
@@ -263,74 +269,90 @@ class AyerinBot:
         self.send_media([media], send_caption=True)
 
     def send_media(self, media_array, group=True, send_caption=False):
-        # TODO: check file size before sending
         if not media_array:
             return
-        self.start_sending_upload_action()
         if len(media_array) == 1:
             group = False
 
         input_media_files = []
-        try:
-            for media_item in media_array:
-                file = None
-                if media_item.url:
-                    file = media_item.url
-                elif media_item.local_path:
-                    if os.path.exists(media_item.local_path):
-                        if not tg_local_bot:
-                            file = open(media_item.local_path, 'rb')
-                        else:
-                            file = media_item.local_path
-                    else:
-                        continue
-                if not file:
-                    continue
+        for media_item in media_array:
+            file = None
 
-                thumb = None
-                thumb_local_path = None
-                if isinstance(media_item.thumbnail, str):
-                    if validators.url(media_item.thumbnail):
-                        thumb_local_path = f"/tmp/thumbs/{media_item.file_name}"
-                        if not os.path.exists(thumb_local_path):
-                            utils.download_file(
-                                media_item.thumbnail, thumb_local_path)
-                    else:
-                        thumb_local_path = media_item.thumbnail
-
-                if thumb_local_path and os.path.exists(thumb_local_path):
-                    thumb = open(thumb_local_path, 'rb')
-
-                if group:
-                    caption = media_item.caption if send_caption else ''
-                    input_media = TGMediaDocument(
-                        file, caption=caption, filename=media_item.file_name)
-                    input_media_files.append(input_media)
+            # assign file variable
+            if media_item.url and not media_item.local_path:
+                file = media_item.url
+                file_size = None
+                if media_item.filesize:
+                    file_size = media_item.filesize
                 else:
-                    caption = media_item.caption if send_caption else ''
-                    tgbot.send_document(document=file, chat_id=self.chat_id,
-                                        filename=media_item.file_name,
-                                        caption=caption,
-                                        timeout=self.timeout,
-                                        thumb=thumb)
-                if isinstance(file, BufferedIOBase):
-                    file.close()
-                if isinstance(thumb, BufferedIOBase):
-                    thumb.close()
+                    file_size = utils.get_remote_filesize(file)
 
-            if input_media_files:
-                print("Send group")
-                tgbot.send_media_group(self.chat_id, input_media_files)
-        except Exception as e:
-            print(e)
-        finally:
-            self.stop_sending_upload_action()
-            return
+                # If file size is greater than 20 MB, telegram won't download
+                # the file automatically. So we'll download and upload it
+                if file_size and file_size > 18974368:
+                    print("remote file is too big; downloading and sending")
+                    dl_filename = media_item.file_name
+                    if not dl_filename:
+                        dl_filename = utils.url_filename(file)
+                    if dl_filename:
+                        dl_path = f"/tmp/downloads/{dl_filename}"
+                        utils.download_file(file, dl_path)
+                        if os.path.exists(dl_path):
+                            if tg_local_bot:
+                                file = dl_path
+                            else:
+                                file = open(dl_path, 'rb')
+
+            elif media_item.local_path:
+                if not os.path.exists(media_item.local_path):
+                    continue
+                if tg_local_bot:
+                    file = media_item.local_path
+                else:
+                    file = open(media_item.local_path, 'rb')
+
+            if not file:
+                continue
+
+            thumb = None
+            thumb_local_path = None
+            if isinstance(media_item.thumbnail, str):
+                if validators.url(media_item.thumbnail):
+                    thumb_local_path = f"/tmp/thumbs/{media_item.file_name}"
+                    if not os.path.exists(thumb_local_path):
+                        utils.download_file(
+                            media_item.thumbnail, thumb_local_path)
+                else:
+                    thumb_local_path = media_item.thumbnail
+
+            if thumb_local_path and os.path.exists(thumb_local_path):
+                thumb = open(thumb_local_path, 'rb')
+
+            if group:
+                caption = media_item.caption if send_caption else ''
+                input_media = TGMediaDocument(
+                    file, caption=caption, filename=media_item.file_name)
+                input_media_files.append(input_media)
+            else:
+                caption = media_item.caption if send_caption else ''
+                tgbot.send_document(document=file, chat_id=self.chat_id,
+                                    filename=media_item.file_name,
+                                    caption=caption,
+                                    timeout=self.timeout,
+                                    thumb=thumb)
+            if isinstance(file, BufferedIOBase):
+                file.close()
+            if isinstance(thumb, BufferedIOBase):
+                thumb.close()
+
+        if input_media_files:
+            print("Send group")
+            tgbot.send_media_group(self.chat_id, input_media_files)
 
 
 # BEGIN PROCEDURE
 # create temporary downlaod paths
-for sv in ['instagram', 'youtube', 'pinterest', 'thumbs']:
+for sv in ['instagram', 'youtube', 'pinterest', 'thumbs', 'downloads']:
     path = "/tmp/" + sv
     if not os.path.exists(path):
         os.makedirs(path)

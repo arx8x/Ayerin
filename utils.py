@@ -36,6 +36,19 @@ def get_redirect_url(url):
     return redirect_url
 
 
+def get_remote_filesize(url):
+    if not url:
+        return None
+    try:
+        r = urllib.request.urlopen(url)
+        header_info = r.info()
+        if (size := header_info.get('content-length')):
+            return int(size)
+    except Exception as e:
+        print(e)
+    return None
+
+
 def url_filename(url):
     parsed = urlparse(url)
     return path.basename(parsed.path)
