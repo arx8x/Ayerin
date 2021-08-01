@@ -40,7 +40,7 @@ class AyerinBot:
 
     def start_sending_upload_action(self):
         def file_upload_action_thread():
-            max_count = 5
+            max_count = 120
             if self.__is_sending_chat_action:
                 return
             self.__is_sending_chat_action = True
@@ -131,9 +131,10 @@ class AyerinBot:
         self.answer_callback_query(text)
 
         yt = YT(id, format)
-        yt.post_process = post_process
         yt.add_audio = add_audio
         yt.audio_only = format == 'AUD'
+        # explicitly disabling post process for video
+        yt.post_process = yt.audio_only
         media = yt.download()
         if media:
             self.start_sending_upload_action()

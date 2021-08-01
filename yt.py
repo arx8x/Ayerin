@@ -1,6 +1,7 @@
 import youtube_dl
 import os
 from mediatypes import MediaObject, MediaType
+from utils import replace_extension
 
 
 class YT:
@@ -18,14 +19,16 @@ class YT:
     def __init__(self, id, format):
         self.id = id
         self.url = f"https://youtube.com/watch?v={id}"
-        self.format = format
+        self.format = str(format)
         if not os.path.exists(self.work_path):
             os.makedirs(self.work_path)
         self.options['cachedir'] = self.work_path
         self.options['cookiefile'] = f"{self.work_path}.cookie"
-        self.options['outtmpl'] = (
-            f"{self.work_path}%(id)s_{self.format}.%(ext)s"
-        )
+        self.options['outtmpl'] = f"{self.work_path}/%(id)s/%(format_id)s/%(title)s.%(ext)s"
+        self.options['postprocessors'] = []
+        # self.options['outtmpl'] = (
+        #     f"{self.work_path}%(id)s_{self.format}.%(ext)s"
+        # )
 
     def video_info(self):
         yt = youtube_dl.YoutubeDL(self.options)
@@ -62,40 +65,47 @@ class YT:
         return video_info
 
     def download(self):
+        self.options['format'] = self.format
         media_type = MediaType.VIDEO
-        if self.audio_only:
+        extension = None
+
+        if self.add_audio and not self.audio_only:
+            self.options['format'] += "+bestaudio"
+
+        if self.audio_only and self.post_process:
+            extension = 'mp3'
             media_type = MediaType.AUDIO
             self.options['format'] = 'bestaudio'
             if self.post_process:
                 self.options['postprocessors'] = [{
                     'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3'
+                    'preferredcodec': extension
                 }]
-                file_path = f"{self.work_path}{self.id}_{self.format}.mp3"
-        else:
-            self.options['format'] = self.format
-            if self.add_audio:
-                self.options['format'] += "+bestaudio"
+        elif self.post_process:
+            extension = 'mp4'
             if self.post_process:
                 self.options['postprocessors'] = [{
                     'key': 'FFmpegVideoConvertor',
-                    'preferedformat': 'mp4'
+                    'preferedformat': extension
                 }]
-                file_path = f"{self.work_path}{self.id}_{self.format}.mp4"
+        else:
+            extension = 'mkv'
 
         print(self.options)
         downloader = youtube_dl.YoutubeDL(self.options)
         info = downloader.extract_info(self.url)
-        predetermined_filename = downloader.prepare_filename(info)
+        file_path = downloader.prepare_filename(info)
+        if extension:
+            file_path = replace_extension(file_path, extension)
 
-        if not self.post_process:
-            file_path = predetermined_filename
-            # this function can often return a wrong filename
-            if not os.path.exists(file_path):
-                # if prepare_filename returns a wrong filename,
-                # mkv is the best guess
-                file_path = f"{self.work_path}{self.id}_{self.format}.mkv"
-            print("auto_path", file_path)
+        # if not self.post_process:
+        #     file_path = predetermined_filename
+        #     # this function can often return a wrong filename
+        #     if not os.path.exists(file_path):
+        #         # if prepare_filename returns a wrong filename,
+        #         # mkv is the best guess
+        #         file_path = f"{self.work_path}{self.id}_{self.format}.mkv"
+        #     print("auto_path", file_path)
         if not os.path.exists(file_path):
             print("yt: no file")
             return None

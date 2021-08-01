@@ -1,4 +1,4 @@
-from os import path
+import os
 import urllib.request
 from urllib.error import HTTPError
 from urllib.parse import urlparse, parse_qs
@@ -51,7 +51,7 @@ def get_remote_filesize(url):
 
 def url_filename(url):
     parsed = urlparse(url)
-    return path.basename(parsed.path)
+    return os.path.basename(parsed.path)
 
 
 def download_file(url, local_path, headers=[]):
@@ -59,7 +59,7 @@ def download_file(url, local_path, headers=[]):
     opener.addheaders = headers
     urllib.request.install_opener(opener)
     urllib.request.urlretrieve(url, local_path)
-    if path.exists(local_path):
+    if os.path.exists(local_path):
         return True
     return False
 
@@ -73,3 +73,13 @@ def url_split(url):
     pathinfo = URLInfo(url, url_split.netloc, components,
                        url_split.scheme, query, url_split.fragment)
     return pathinfo
+
+
+def replace_extension(path, extension):
+    if not path or not extension:
+        return None
+    path_split = os.path.splitext(path)
+    if not path_split:
+        return None
+    new_path = f"{path_split[0]}.{extension}"
+    return new_path
