@@ -21,6 +21,7 @@ current_update = None
 class AyerinBot:
 
     def __init__(self, update, timeout=180):
+        self.progress_message_id = None
         self.timeout = timeout
         self.url_info = None
         self.chat_id = None
@@ -90,8 +91,23 @@ class AyerinBot:
 
     def send_message(self, message, send_as_reply=False,
                      reply_markup=None, parse_mode=None):
-        tgbot.send_message(self.chat_id, message,
-                           reply_markup=reply_markup, parse_mode=parse_mode)
+        result = tgbot.send_message(self.chat_id,
+                                    message, reply_markup=reply_markup,
+                                    parse_mode=parse_mode)
+        return result
+
+    def update_progress_message(self, message, send_new=False,
+                                parse_mode=None):
+        if not self.progress_message_id:
+            result = tgbot.send_message(self.chat_id, text=message,
+                                        parse_mode=parse_mode)
+            if result:
+                self.progress_message_id = result.message_id
+            return
+
+        return tgbot.edit_message_text(chat_id=self.chat_id, text=message,
+                                       message_id=self.progress_message_id,
+                                       parse_mode=parse_mode)
 
     def send_typing_action(self):
         tgbot.send_chat_action(
@@ -124,7 +140,7 @@ class AyerinBot:
             return
         id = args[1]
         format = args[2]
-        post_process = args[3] != '0'
+        # post_process = args[3] != '0'
         add_audio = args[4] != '0'
 
         text = "Your video is being processed. Please wait..."
@@ -135,17 +151,30 @@ class AyerinBot:
         yt.audio_only = format == 'AUD'
         # explicitly disabling post process for video
         yt.post_process = yt.audio_only
-        media = yt.download()
-        if media:
+        try:
             self.start_sending_upload_action()
-            try:
+            progress = ("<b>Processing</b>\nPlease don't send additional "
+                        "requests and wait patiently.")
+            result = self.update_progress_message(progress,
+                                                  parse_mode=tgconstants.
+                                                  PARSEMODE_HTML)
+            if result:
+                self.progress_message_id = result.message_id
+            media = yt.download()
+            progress = "<b>Uploading</b>\nUploading your media.\nPlease wait."
+            self.update_progress_message(progress,
+                                         parse_mode=tgconstants.PARSEMODE_HTML)
+            if media:
                 self.send_media([media], send_caption=True)
-            except Exception:
+                self.update_progress_message("<b>Done</b>",
+                                             parse_mode=tgconstants.
+                                             PARSEMODE_HTML)
+            else:
                 self.send_message("Error")
-            finally:
-                self.stop_sending_upload_action()
-        else:
+        except Exception:
             self.send_message("Error")
+        finally:
+            self.stop_sending_upload_action()
 
     def answer_callback_query(self, message):
         if not (callback_id := self.callback_query_id):
