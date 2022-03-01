@@ -202,8 +202,10 @@ class AyerinBot:
             if media:
                 self.send_media([media], send_caption=True)
             return
-
-        link_type = self.url_info.components[0]
+        elif components_length == 3:
+            link_type = self.url_info.components[1]
+        else:
+            link_type = self.url_info.components[0]
         if link_type in ['reel', 'p']:  # post and reels
             media_items = igbot.get_post_media(self.url_info.url)
             if not media_items:
