@@ -36,7 +36,7 @@ class AyerinBot:
     def handle_update(self):
         if self.update.callback_query:
             self.__handle_callback_query()
-        elif self.update.message.text:
+        elif self.update.message and self.update.message.text:
             self.__handle_text_message()
 
     def start_sending_upload_action(self):
