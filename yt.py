@@ -1,8 +1,8 @@
-import youtube_dl
+import yt_dlp as youtube_dl
+# import youtube_dl
 import os
 from mediatypes import MediaObject, MediaType
 from utils import replace_extension
-
 
 class YT:
     options = {
@@ -33,7 +33,9 @@ class YT:
     def video_info(self):
         yt = youtube_dl.YoutubeDL(self.options)
         video_info = yt.extract_info(self.url, download=False)
+        return self.__video_info(video_info)
 
+    def __video_info(self, video_info):
         qualities = {}
         for index, format in enumerate(video_info['formats']):
             format_name = format['format_note'] if \
@@ -43,12 +45,12 @@ class YT:
                 print("new format")
                 qualities[format_name] = format
             else:
-                if qualities[format_name]['ext'] == 'mp4' and \
-                   qualities[format_name]['fps'] and \
-                   qualities[format_name]['asr']:
+                if qualities[format_name].get('ext') == 'mp4' and \
+                   qualities[format_name].get('fps') and \
+                   qualities[format_name].get('asr'):
                     print("quality already optimal")
                     continue
-                if format['fps'] and format['asr']:
+                if format.get('fps') and format.get('asr'):
                     # if fps and asr (audio sample rate) are non-null, that
                     # means video and audio exist in the format and there will
                     # be no need to post-process

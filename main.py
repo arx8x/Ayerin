@@ -140,7 +140,7 @@ class AyerinBot:
             return
         id = args[1]
         format = args[2]
-        # post_process = args[3] != '0'
+        post_process = args[3] != '0'
         add_audio = args[4] != '0'
 
         text = "Your video is being processed. Please wait..."
@@ -149,8 +149,8 @@ class AyerinBot:
         yt = YT(id, format)
         yt.add_audio = add_audio
         yt.audio_only = format == 'AUD'
-        # explicitly disabling post process for video
-        yt.post_process = yt.audio_only
+        # post processing is disabled for videos in buttons
+        yt.post_process = post_process
         try:
             self.start_sending_upload_action()
             progress = ("<b>Processing</b>\nPlease don't send additional "
@@ -255,22 +255,37 @@ class AyerinBot:
 
         inline_buttons = []
         button_buffer = []
+        audio_added = False
         for index, (name, format) in enumerate(video_info['formats'].items()):
-            post_process = 1
+            post_process = 0
             add_audio = 0
             format_id = format['format_id']
+            abr = format.get('abr')
+            vbr = format.get('vbr')
+            tbr = format.get('tbr')
+            asr = format.get('asr')
+            fps = format.get('fps')
+
+            if not abr and not vbr:
+                continue
+
             # flag to indicate, the file can be downloaded and sent without
             # any processing
-            if format['ext'] == 'mp4' and format['fps'] and format['asr']:
+            if format['ext'] == 'mp4' and fps and asr:
                 post_process = 0
                 # * in button text indicates it'll be faster
                 # since there's no post processing
                 name += '*'
-            if not format['asr']:
+            if not format.get('asr'):
+                # no asr typically means there's no audio
                 add_audio = 1
-            if name == 'tiny':
-                name = 'MP3 Audio'
+            if abr and asr and not vbr:
+                if audio_added:
+                    continue
+                name = f'MP3 Audio'
+                post_process = 1
                 format_id = 'AUD'
+                audio_added = True
             button = InlineKeyboardButton(
                 name,
                 callback_data=f"yt:{id}:{format_id}:{post_process}:{add_audio}")
