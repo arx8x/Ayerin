@@ -55,7 +55,7 @@ class Pin:
         #         request = urlrequest.urlopen(redirect_url)
         #         page_data = request.read()
         #         page_data_str = page_data.decode('utf-8')
-        regex = r"\<script\s+id=\"initial\-state\".+?\>(\{.+?\})\<\/script\>"
+        regex = r"\<script\s+id=\"__PWS_DATA__\".+?\>(\{.+?\})\<\/script\>"
         # extract json page data from the source
         matches = re.findall(regex, page_data_str)
         if not matches:
@@ -64,7 +64,7 @@ class Pin:
         if dict:
             try:
                 self.__page_data = \
-                            dict['resourceResponses'][0]['response']['data']
+                            dict['props']['initialReduxState']['pins'][self.id]
             except KeyError:
                 print("Can't find data")
 
