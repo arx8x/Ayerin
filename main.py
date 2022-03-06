@@ -292,7 +292,7 @@ class AyerinBot:
 
     def __handle_pinterest_url(self):
         pin = Pin(self.url_info)
-        media = pin.get_video()
+        media = pin.get_media()
         print(media)
         if not media:
             text = "Sorry, I was unable to find any media at the given link"

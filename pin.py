@@ -5,6 +5,7 @@ import validators
 from utils import url_split, URLInfo, get_redirect_url
 import re
 import json
+# from pprint import pprint
 
 # Pinterest is a weird website. Why does it exist?
 # Pinterest has two types of urls. Direct url to the pin and shortened
@@ -85,10 +86,17 @@ class Pin:
             self.id = urlinfo.components[1]
             self.url = f"https://in.pinterest.com/pin/{self.id}/"
 
-    def get_video(self):
+    def get_media(self):
+        media = None
         if not self.__page_data:
             return None
-        video_list = None
+        if not self.__page_data['videos']:
+            media = self.__get_image()
+        else:
+            media = self.__get_video()
+        return media
+
+    def __get_video(self):
         try:
             video_list = self.__page_data['videos']['video_list']
         except KeyError as e:
@@ -113,3 +121,17 @@ class Pin:
             media.caption = caption
             return media
         return None
+
+    def __get_image(self):
+        try:
+            image = self.__page_data['images']['orig']
+        except KeyError as e:
+            print(e)
+            return None
+
+        if not image:
+            return None
+
+        media = MediaObject(image['url'], MediaType.IMAGE)
+        media.caption = self.__page_data.get('grid_title')
+        return media
