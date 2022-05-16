@@ -188,8 +188,8 @@ class AyerinBot:
                               "Please use /report command to report this issue.",
                               parse_mode=tgconstants.PARSEMODE_HTML)
             return
-
-        components_length = len(self.url_info.components)
+        url_components = self.url_info.components
+        components_length = len(url_components)
         if not components_length:
             text = "That instagram link is malformed or no media exists at link"
             self.send_message(text)
@@ -197,27 +197,52 @@ class AyerinBot:
 
         if components_length == 1:
             # 1 means it's a username (assumed)
-            username = self.url_info.components[0]
+            username = url_components[0]
             media = igbot.get_profile_image(username)
             if media:
                 self.send_media([media], send_caption=True)
             return
-        elif components_length == 3:
-            link_type = self.url_info.components[1]
         else:
-            link_type = self.url_info.components[0]
-        if link_type in ['reel', 'p']:  # post and reels
-            media_items = igbot.get_post_media(self.url_info.url)
+            # https://instagra.com/stories/username/12345
+            # in a typial story link, the link type 'stories' is 0 th index
+            # and the media id is 2nd index (0 + 2)
+            # this dict indicates how many indices apart the media id and
+            # link type are
+            link_types = {'reel': 1, 'p': 1, 'stories': 2}
+            link_type = media_id = None
+            # find if url contains the valid post types
+            for component in url_components:
+                if component not in link_types:
+                    continue
+                # find the index for the media id
+                index = url_components.index(component) + link_types[component]
+                if len(url_components) >= index:
+                    link_type = component
+                    media_id = url_components[index]
+
+        if not link_type or not media_id:
+            self.send_message("The media type isn't supported")
+            return
+
+        # reconstruct the url because instagram has no clue
+        # what the fuck they're doing and their client apps
+        # product different kinds of urls even their own clients
+        # can't load
+        url = f"https://instagram.com/{link_type}/{media_id}"
+        if link_type == 'stories':
+            media = igbot.get_story_media(media_id)
+            self.send_media(media)
+        else:
+            media_items = None
+            try:
+                media_items = igbot.get_post_media(url)
+            except Exception:
+                pass
             if not media_items:
                 text = "The media type you sent may not be supported"
                 self.send_message(text)
                 return
             self.send_media(media_items)
-        elif link_type == 'stories':
-            media_id = self.url_info.components[2]
-            media = igbot.get_story_media(media_id)
-            self.send_media(media)
-            return
 
     def __handle_youtube_url(self):
         self.send_typing_action()
