@@ -21,6 +21,10 @@ def from_json(json_object):
     return json_object
 
 
+class UserNotFollowingException(Exception):
+    pass
+
+
 class IGBot(Client):
     def __init__(self, username, password):
         device_id = None
@@ -120,3 +124,54 @@ class IGBot(Client):
         media.width = selected_media['width']
         media.file_name = url_filename(media.url)
         return media
+
+    def __user_list(self, method, user_id, max=1000) -> dict:
+        # list following and followers
+        users = {}
+        total_read = 0
+        rank_token = self.generate_uuid()
+        # rank_token is the identifier for the pagination list
+        # max_id is the offset in the pagination list
+        if not callable(method):
+            return users
+
+        while True:
+            user_batch = method(user_id, rank_token=rank_token, max_id=total_read)
+            if not (user_batch := user_batch.get('users')):
+                break
+            read_count = len(user_batch)
+            for user in user_batch:
+                users[user.get('pk')] = user
+            total_read += read_count
+            if not read_count:
+                break
+        return users
+
+    def leech_list(self, username):
+        user = self.username_info(username)
+        user_id = None
+        is_private = None
+        try:
+            user_id = user['user']['pk']
+            is_private = user['user']['is_private']
+        except KeyError:
+            return None
+        if is_private:
+            # attempt to follow
+            friendship_status = self.friendships_create(user_id)
+            following = False
+            try:
+                following = friendship_status['friendship_status']['following']
+            except KeyError:
+                return None
+            if not following:
+                raise UserNotFollowingException("User is private but not following")
+
+        following = self.__user_list(self.user_following, user_id)
+        followers = self.__user_list(self.user_followers, user_id)
+        leechers = {}
+        for user_id, user in following.items():
+            if user_id not in followers:
+                leechers[user_id] = user
+
+        return leechers
