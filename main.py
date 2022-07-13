@@ -5,6 +5,7 @@ from time import sleep as tsleep
 import threading
 from yt import YT
 import validators
+from mediatypes import MediaObject, MediaType
 from __shared import igbot, tgbot, tgupdater, tg_local_bot
 from telegram import (constants as tgconstants,
                       InputMediaDocument as TGMediaDocument)
@@ -12,6 +13,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import MessageHandler, Filters, CallbackQueryHandler
 import utils
 from pin import Pin
+import subprocess
 # global variable to hold the current Update
 # this only works since these handlers are blocking/synchronous
 # RENOVE THIS WHEN DOING Async to avoid race conditions
@@ -38,6 +40,8 @@ class AyerinBot:
             self.__handle_callback_query()
         elif self.update.message and self.update.message.text:
             self.__handle_text_message()
+        elif self.update.message and self.update.message.video:
+            self.__handle_file()
 
     def start_sending_upload_action(self):
         def file_upload_action_thread():
@@ -70,6 +74,22 @@ class AyerinBot:
         else:
             self.reply_chat_message(self.text_message)
         return
+
+    def __handle_file(self):
+        # Send inline buttons to extract audio
+        inline_keyboard = [
+            InlineKeyboardButton(
+                "Get MP3 Audio",
+                callback_data="extract_aud:mp3"
+            )
+        ]
+        tgbot.send_message(
+            self.chat_id,
+            text="*File Actions*\nUse the inline buttons below to perform actions with the file you sent",
+            reply_markup=InlineKeyboardMarkup([inline_keyboard]),
+            parse_mode=tgconstants.PARSEMODE_MARKDOWN,
+            reply_to_message_id=self.update.message.message_id
+        )
 
     def __handle_url(self, url):
         url_info = utils.url_split(url)
@@ -121,12 +141,54 @@ class AyerinBot:
         self.send_message("Send me a media link to begin")
 
     def __handle_callback_query(self):
+        converted_path = file_path = None
+
+        def cleanup_files():
+            if file_path and os.path.exists(file_path):
+                os.unlink(file_path)
+            if converted_path and os.path.exists(converted_path):
+                os.unlink(converted_path)
+
+        self.remove_inline_keyboard()
         args = self.update.callback_query.data.split(':')
         self.callback_query_id = self.update.callback_query.id
         if not args:
             return
         if args[0] == 'yt':
             self.__handle_youtube_callback(args)
+        elif args[0] == 'extract_aud':
+            # TODO: remove the inline buttons
+            message = self.update.callback_query.message.reply_to_message
+            file = message.document or message.video
+            if not file:
+                self.answer_callback_query("Could not find the attached media")
+                return
+            file_path = self.__download_tg_file(file)
+            if not os.path.exists(file_path):
+                self.answer_callback_query("Unable to download the attached media")
+                cleanup_files()
+                return
+            # convert the file
+            self.answer_callback_query("Please wait patienty while I convert the media")
+            converted_path = utils.replace_extension(file_path, args[1])
+            command_args = ['ffmpeg', '-i', file_path, '-y', converted_path]
+            subprocess.run(command_args, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+            if not os.path.exists(converted_path):
+                self.answer_callback_query("Attached media could not be converted")
+                cleanup_files()
+                return
+            send_file_name = utils.replace_extension(file.file_name, args[1])
+            media = MediaObject(url=None, mediatype=MediaType.AUDIO,
+                                file_name=send_file_name, local_path=converted_path)
+            self.send_media([media])
+            cleanup_files()
+
+    def __download_tg_file(self, file):
+        extension = os.path.splitext(file.file_name)[1] or ''
+        tg_file = tgbot.get_file(file.file_id)
+        download_path = f"/tmp/downloads/{tg_file.file_id}{extension}"
+        tg_file.download(download_path)
+        return download_path
 
     def remove_inline_keyboard(self, message_id=0):
         if not message_id:
